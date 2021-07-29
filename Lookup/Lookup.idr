@@ -44,6 +44,7 @@ data Lookup : a -> List (a, b) -> Type where
   There : Lookup z xys -> Uninhabited (z = x) => Lookup z $ (x, y)::xys 
 
 -- reveal function is implemented in the same fashion:
+public export
 reveal : Lookup {b} x xys -> b
 reveal (Here y) = y
 reveal (There y) = reveal y
@@ -56,4 +57,4 @@ example3 = reveal l -- = 0
 -- compiler can not infer Uninhabited (0 = 0) (would've been worrying if it
 -- was able to)
 -- example4_1 : Lookup {a = Nat} 0 $ (0, 0)::(1, 1)::(0, 2)::[]
--- example4_1 = There (There (Here 2)) 
+-- example4_1 = There (There (Here 2)) -- This leads to error
