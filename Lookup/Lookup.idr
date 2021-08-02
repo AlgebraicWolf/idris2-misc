@@ -1,9 +1,15 @@
+module Lookup
+
 import Data.Nat
 
 -- Consider the following type
 data Lookup' : a -> List (a, b) -> Type where
-  Here'  : (y : b) -> Lookup' x $ (x, y)::xys
   There' : Lookup' z xys -> Lookup' z $ (x, y)::xys
+  Here'  : (y : b) -> Lookup' x $ (x, y)::xys
+
+-- Once the data definition in the same module, it's searched down-up.
+-- For data definitions from other modules, it's searched up-down.
+-- It is known but is not considered a bug: https://github.com/idris-lang/Idris2/issues/814
 
 -- A term of type Lookup' x xys is a proof that there is an element in the xys
 -- (which is a list of pairs) such that the first component of this element is
@@ -17,17 +23,24 @@ reveal' (There' y) = reveal' y
 -- objects of type Lookup', we might notice that the compiler infers instance
 -- for the leftmost pair that has the required value x:
 
-example1 : (l : Lookup' {a = Nat} 0 $ (0, 0)::(1, 1)::(0, 2)::[]) => Integer
+example1 : (l : Lookup' {a = Nat} 0 [(0, 0), (1, 1), (0, 2)]) => Integer
 example1 = reveal' l -- = 0
+
+-- To show that compiler agrees with us on the value.
+example1_value : Lookup.example1 = 0
+example1_value = Refl
 
 -- However, this is only caused by the algorithm used to infer term of Lookup
 -- type, and we still can manually create other terms:
 
-example2_1 : Lookup' {a = Nat} 0 $ (0, 1)::(1, 1)::(0, 2)::[]
-example2_1 = There' (There' (Here' 2))
+example2_1 : Lookup' {a = Nat} 0 [(0, 1), (1, 1), (0, 2)]
+example2_1 = There' $ There' $ Here' 2
 
 example2_2 : Integer
 example2_2 = reveal' example2_1 -- = 2
+
+example2_2_value : Lookup.example2_2 = 2
+example2_2_value = Refl
 
 -- Yet the observed behaviour might be useful, so we might want to design a
 -- type that **guarantees** that the element is the leftmost one. Let's try to
@@ -41,7 +54,7 @@ data Lookup : a -> List (a, b) -> Type where
   -- need to make sure that the first component of a newly attached pair is not
   -- equal to the first component of the pair Lookup is pointing to. We can
   -- achieve this by requiring uninhabitance constraint on type z = x:
-  There : Lookup z xys -> Uninhabited (z = x) => Lookup z $ (x, y)::xys 
+  There : Lookup z xys -> Uninhabited (z = x) => Lookup z $ (x, y)::xys
 
 -- reveal function is implemented in the same fashion:
 public export
@@ -49,12 +62,15 @@ reveal : Lookup {b} x xys -> b
 reveal (Here y) = y
 reveal (There y) = reveal y
 
--- Now we can verify that example with auto inference is still working: 
-example3 : (l : Lookup {a = Nat} 0 $ (0, 0)::(1, 1)::(0, 2)::[]) => Integer
+-- Now we can verify that example with auto inference is still working:
+example3 : (l : Lookup {a = Nat} 0 [(0, 0), (1, 1), (0, 2)]) => Integer
 example3 = reveal l -- = 0
 
--- However, now we can not construct Lookup for the pair (0, 2), since the 
+example3_value : Lookup.example3 = 0
+example3_value = Refl
+
+-- However, now we can not construct Lookup for the pair (0, 2), since the
 -- compiler can not infer Uninhabited (0 = 0) (would've been worrying if it
 -- was able to)
--- example4_1 : Lookup {a = Nat} 0 $ (0, 0)::(1, 1)::(0, 2)::[]
--- example4_1 = There (There (Here 2)) -- This leads to error
+--example4_1 : Lookup {a = Nat} 0 [(0, 0), (1, 1), (0, 2)]
+--example4_1 = There $ There $ Here 2 -- This leads to an error
