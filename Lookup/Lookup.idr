@@ -1,3 +1,5 @@
+module Lookup
+
 import Data.Nat
 
 -- Consider the following type
@@ -19,6 +21,9 @@ reveal' (There' y) = reveal' y
 
 example1 : (l : Lookup' {a = Nat} 0 $ (0, 0)::(1, 1)::(0, 2)::[]) => Integer
 example1 = reveal' l -- = 0
+
+example1_value : Lookup.example1 = 0
+example1_value = ?example1_value_rhs
 
 -- However, this is only caused by the algorithm used to infer term of Lookup
 -- type, and we still can manually create other terms:
